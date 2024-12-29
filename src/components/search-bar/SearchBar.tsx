@@ -1,6 +1,7 @@
 import {
   ChangeEvent,
   FocusEvent,
+  KeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -19,12 +20,14 @@ import {
   SUGGESTION_ITEM_CLASSNAME_IDENTIFIER,
   MIN_SHOW_CLEAR_BUTTON_TEXT_COUNT,
   MIN_SUGGESTION_TEXT_COUNT,
+  HIGHLIGHTED_SUGGESTION_ITEM_CLASSNAME_IDENTIFIER,
 } from '../../constants';
 
 interface SearchBarProps {
   suggestions?: HighlightableText[];
   suggestionsIsLoading?: boolean;
   suggestionsIsFailed?: boolean;
+  suggestionsIsSuccessful?: boolean;
   onSelected?: () => void;
   onSuggest?: (searchText: string) => void;
   onSearch: (searchText: string) => void;
@@ -33,6 +36,7 @@ interface SearchBarProps {
 export const SearchBar = ({
   suggestionsIsLoading = false,
   suggestionsIsFailed = false,
+  suggestionsIsSuccessful = false,
   suggestions = [],
   onSuggest,
   onSearch,
@@ -62,7 +66,7 @@ export const SearchBar = ({
     return cName;
   }, [isFocused, isOpen]);
 
-  const { isSmallScreen } = useResponsive();
+  const { isXsScreen } = useResponsive();
 
   const handleSearch = useCallback(
     (text?: string) => {
@@ -134,6 +138,21 @@ export const SearchBar = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFocused, suggestions, showSuggestions]);
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (
+      e.key !== 'Enter' ||
+      e.altKey ||
+      e.ctrlKey ||
+      e.shiftKey ||
+      !!document.getElementsByClassName(
+        HIGHLIGHTED_SUGGESTION_ITEM_CLASSNAME_IDENTIFIER
+      ).length
+    )
+      return;
+
+    handleSearch();
+  };
+
   return (
     <div className={searchBarClassName}>
       <div
@@ -149,6 +168,7 @@ export const SearchBar = ({
           onFocus={onFocus}
           onBlur={onBlur}
           onChange={handleChange}
+          onKeyDown={handleKeyDown}
         />
         {inputValue.length >= MIN_SHOW_CLEAR_BUTTON_TEXT_COUNT && (
           <Image
@@ -165,12 +185,13 @@ export const SearchBar = ({
             suggestions={suggestions}
             isLoading={suggestionsIsLoading}
             isFailed={suggestionsIsFailed}
+            isSuccessful={suggestionsIsSuccessful}
             onSelected={handleSelected}
           />
         )}
       </div>
 
-      <SearchButton isSmall={isSmallScreen} onClick={() => handleSearch()} />
+      <SearchButton isSmall={isXsScreen} onClick={() => handleSearch()} />
     </div>
   );
 };

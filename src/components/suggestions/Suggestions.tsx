@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HighlightableText } from '../../types';
 import styles from './suggestions.module.css';
 import { H4, MixedHighlightText } from '../fonts';
 import {
+  HIGHLIGHTED_SUGGESTION_ITEM_CLASSNAME_IDENTIFIER,
   NO_SUGGESTIONS,
   SUGGESTIONS_FAILED,
   SUGGESTIONS_LOADING,
@@ -12,6 +13,7 @@ import {
 interface SuggestionsProps {
   isLoading: boolean;
   isFailed: boolean;
+  isSuccessful: boolean;
   anchorEl: HTMLDivElement | null;
   suggestions: HighlightableText[];
   onSelected: (selectedText: string) => void;
@@ -19,10 +21,9 @@ interface SuggestionsProps {
 
 interface SuggestionItemProps {
   suggestion: HighlightableText;
-  selectable: boolean;
-  isHighLighted: boolean;
-  isLoading: boolean;
-  isError: boolean;
+  selectable?: boolean;
+  isHighLighted?: boolean;
+  isError?: boolean;
   index?: number;
   onClick?: (text: string) => void;
   onHover?: (index: number) => void;
@@ -32,23 +33,17 @@ const SuggestionItem = ({
   suggestion,
   selectable,
   isHighLighted,
-  isLoading,
   isError,
   index,
   onHover,
   onClick,
 }: SuggestionItemProps) => {
-  const isSelectable = useMemo(
-    () => selectable && !isLoading && !isError,
-    [selectable, isLoading, isError]
-  );
-
   const className = useMemo(() => {
     const cName = `${SUGGESTION_ITEM_CLASSNAME_IDENTIFIER} ${styles.suggestion_item}`;
-    return isHighLighted && isSelectable
-      ? `${cName} ${styles.suggestion_item_highlighted}`
-      : `${cName} ${styles.suggestion_item_error}`;
-  }, [isHighLighted, isSelectable]);
+    return isHighLighted && selectable
+      ? `${cName} ${styles.suggestion_item_highlighted} ${HIGHLIGHTED_SUGGESTION_ITEM_CLASSNAME_IDENTIFIER}`
+      : cName;
+  }, [isHighLighted, selectable]);
 
   const handleHover = useCallback(() => {
     onHover && typeof index === 'number' && onHover(index);
@@ -69,22 +64,18 @@ const SuggestionItem = ({
         info={suggestion}
         RegularTextComponent={H4}
         regularTextProps={
-          isSelectable
+          selectable
             ? undefined
             : {
-                className: isError
-                  ? styles.suggestion_text_error
-                  : styles.suggestion_text_disabled,
+                className: styles.suggestion_text_disabled,
+                isError: isError,
               }
         }
         HighlightedTextComponent={H4}
         highlightTextProps={{
           isBold: true,
-          className: isSelectable
-            ? undefined
-            : isError
-            ? styles.suggestion_text_error
-            : styles.suggestion_text_disabled,
+          className: selectable ? undefined : styles.suggestion_text_disabled,
+          isError: isError,
         }}
       />
     </div>
@@ -96,6 +87,7 @@ export const Suggestions = ({
   suggestions,
   isLoading,
   isFailed,
+  isSuccessful,
   onSelected,
 }: SuggestionsProps) => {
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -118,9 +110,65 @@ export const Suggestions = ({
     [onSelected]
   );
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!suggestions.length) return;
+
+      if (e.ctrlKey || e.altKey || e.shiftKey) return;
+
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        setHighlightedIndex((index) => {
+          if (e.key === 'ArrowUp') {
+            if (index === -1 || index === 0) return suggestions.length - 1;
+            return index - 1;
+          }
+          if (e.key === 'ArrowDown') {
+            if (index === -1 || index === suggestions.length - 1) return 0;
+            return index + 1;
+          }
+
+          return index;
+        });
+        return;
+      }
+
+      if (e.key === 'Enter' && highlightedIndex !== -1) {
+        onSelect(suggestions[highlightedIndex].Text);
+      }
+    },
+    [suggestions, highlightedIndex, onSelect]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
   return (
     <div className={styles.suggestion_container} style={containerStyles}>
-      {suggestions.length ? (
+      {isLoading && (
+        <SuggestionItem
+          suggestion={{
+            Highlights: [],
+            Text: SUGGESTIONS_LOADING,
+          }}
+        />
+      )}
+      {!isLoading && isFailed && (
+        <SuggestionItem
+          suggestion={{
+            Highlights: [],
+            Text: SUGGESTIONS_FAILED,
+          }}
+          isError
+        />
+      )}
+      {!isLoading &&
+        isSuccessful &&
+        !!suggestions.length &&
         suggestions.map((suggestion, index) => {
           const key =
             suggestion.Text.replace(' ', '') +
@@ -132,27 +180,17 @@ export const Suggestions = ({
               suggestion={suggestion}
               selectable
               isHighLighted={index === highlightedIndex}
-              isLoading={false}
-              isError={false}
               onHover={onHover}
               onClick={onSelect}
             />
           );
-        })
-      ) : (
+        })}
+      {!isLoading && isSuccessful && !suggestions.length && (
         <SuggestionItem
           suggestion={{
             Highlights: [],
-            Text: isLoading
-              ? SUGGESTIONS_LOADING
-              : isFailed
-              ? SUGGESTIONS_FAILED
-              : NO_SUGGESTIONS,
+            Text: NO_SUGGESTIONS,
           }}
-          selectable={false}
-          isHighLighted={false}
-          isLoading={isLoading}
-          isError={isFailed}
         />
       )}
     </div>
