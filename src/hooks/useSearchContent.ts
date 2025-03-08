@@ -33,6 +33,7 @@ const extractHighligtedContent = (
   let modifiedResultItems = [];
   for (const item of resultItems) {
     const { DocumentExcerpt, DocumentTitle } = item;
+
     const filteredDocumentExcerpt = filterTextContainMatch(
       [DocumentExcerpt.Text],
       searchText,
@@ -85,11 +86,11 @@ export const useSearchContent = (): SearchContentReturnProps => {
         setData(undefined);
         return;
       }
-      if (!searchText) {
-        // if no search text, assume returning all content
-        setData(data);
-        return;
-      }
+      // if (!searchText) {
+      //   // if no search text, assume returning all content
+      //   setData(data);
+      //   return;
+      // }
       // need to modify some values in the data to mock query response
       const { ResultItems } = data;
 

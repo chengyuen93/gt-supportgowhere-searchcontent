@@ -39,6 +39,14 @@ export const filterTextContainMatch = (
 
   const filteredData: HighlightableText[] = [];
   for (const value of values) {
+    if (!match) {
+      const highlightable: HighlightableText = {
+        Text: value,
+        Highlights: [],
+      };
+      filteredData.push(highlightable);
+      continue;
+    }
     const matches = Array.from(value.matchAll(regex));
     if (!matches.length) continue;
     const highlightable: HighlightableText = {
